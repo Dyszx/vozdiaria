@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "VozDiária",
+    "slug": "vozdiaria",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F0F1A",
+    "icon": "./assets/icon.png",
+    "android": {
+      "package": "com.vozdiaria.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6C63FF"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Permitir que VozDiária acesse o microfone para gravar notas de voz."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/adaptive-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#0F0F1A"
+        }
+      ]
+    ],
+    "scheme": "vozdiaria",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
