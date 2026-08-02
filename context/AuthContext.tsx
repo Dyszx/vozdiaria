@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    await AsyncStorage.removeItem('groq_api_key');
+    await AsyncStorage.removeItem('gemini_api_key');
     // Sem tela de login, gera uma nova sessão anônima na hora para o app continuar usável.
     // Nota: isso perde acesso às notas da sessão anterior (são vinculadas ao user_id anônimo antigo).
     await supabase.auth.signInAnonymously();

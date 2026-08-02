@@ -37,15 +37,15 @@ Aguarde o download de todas as bibliotecas (pode levar alguns minutos na primeir
 
 ---
 
-## 🔑 Passo 3 — Obter Chave Groq (Gratuita)
+## 🔑 Passo 3 — Obter Chave Gemini (Gratuita)
 
-1. Acesse **https://console.groq.com**
-2. Crie uma conta gratuita (sem cartão de crédito)
-3. Vá em **API Keys** → **Create API Key**
-4. Copie a chave (começa com `gsk_...`)
+1. Acesse **https://aistudio.google.com/apikey**
+2. Faça login com sua conta Google
+3. Clique em **Create API Key**
+4. Copie a chave (começa com `AIza...`)
 5. No app, abra a aba **Configurações** e cole a chave
 
-> ✅ O Groq oferece **6.000 minutos/mês** de transcrição Whisper Large V3 no plano gratuito.
+> ✅ O Gemini oferece transcrição gratuita dentro dos limites diários do plano gratuito.
 
 ---
 
@@ -80,7 +80,7 @@ VozDiaria/
 │   └── _layout.tsx
 ├── services/
 │   ├── supabase.ts         ← ⚠️ Configure aqui suas credenciais
-│   ├── transcription.ts    ← Integração Groq Whisper
+│   ├── transcription.ts    ← Integração Gemini (transcrição de áudio)
 │   ├── entries.ts          ← CRUD das notas
 │   └── reports.ts          ← Geração de relatórios
 ├── hooks/
@@ -102,7 +102,7 @@ VozDiaria/
 | `node: command not found` | Reinstale o Node.js e feche/abra o terminal |
 | `Cannot find module 'expo'` | Execute `npm install` novamente |
 | Erro de Supabase | Verifique se as credenciais em `services/supabase.ts` estão corretas e se `supabase/schema.sql` foi executado |
-| Erro de transcrição | Verifique se a chave Groq está configurada nas Configurações |
+| Erro de transcrição | Verifique se a chave Gemini está configurada nas Configurações |
 | App não abre no celular | Verifique se está na mesma rede Wi-Fi que o computador |
 
 ---
@@ -110,7 +110,7 @@ VozDiaria/
 ## 📊 Funcionalidades
 
 - 🎙️ **Gravação** com pausar/retomar e seleção de categoria
-- 🤖 **Transcrição automática** em português via Groq Whisper
+- 🤖 **Transcrição automática** em português via Google Gemini
 - 📋 **Lista de notas** com busca, filtros e reprodução de áudio
 - 📊 **Relatórios diários e semanais** com linha do tempo
 - 📄 **Exportar PDF** para compartilhar relatórios

@@ -56,7 +56,7 @@ export default function RecordScreen() {
   }, [isRecording, isPaused]);
 
   const loadData = useCallback(async () => {
-    const key = await AsyncStorage.getItem('groq_api_key');
+    const key = await AsyncStorage.getItem('gemini_api_key');
     setHasApiKey(!!key);
 
     if (user) {
@@ -116,8 +116,8 @@ export default function RecordScreen() {
   const handleRecordPress = async () => {
     if (!hasApiKey) {
       Alert.alert(
-        '🔑 Chave Groq Necessária',
-        'Configure sua chave gratuita da Groq API na aba Configurações para transcrever seus áudios.',
+        '🔑 Chave Gemini Necessária',
+        'Configure sua chave gratuita da Gemini API na aba Configurações para transcrever seus áudios.',
         [
           { text: 'Configurar Agora', onPress: () => router.push('/settings') },
           { text: 'Cancelar', style: 'cancel' },
@@ -180,8 +180,8 @@ export default function RecordScreen() {
         setStatusMessage('Selecione uma categoria e comece a gravar');
       }, 3000);
     } catch (error: any) {
-      if (error.message === 'GROQ_KEY_MISSING') {
-        Alert.alert('Erro', 'Chave Groq não configurada. Vá em Configurações.');
+      if (error.message === 'GEMINI_KEY_MISSING') {
+        Alert.alert('Erro', 'Chave Gemini não configurada. Vá em Configurações.');
       } else {
         Alert.alert('Erro na Transcrição', 'Não foi possível transcrever o áudio. Verifique sua conexão.');
       }

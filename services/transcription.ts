@@ -1,55 +1,57 @@
-// Groq Whisper Transcription Service
+// Gemini Transcription Service
 // ====================================
-// Groq oferece Whisper Large V3 GRATUITAMENTE
-// Free tier: 7.200 segundos (2 horas) de áudio por dia
+// O Gemini transcreve áudio nativamente via generateContent (áudio inline em base64).
+// Free tier generoso (Gemini 2.5 Flash): sem custo até os limites de requisições/dia.
 //
 // Para obter sua chave gratuita:
-// 1. Acesse https://console.groq.com
-// 2. Crie uma conta (gratuito, sem cartão)
-// 3. Vá em API Keys > Create API Key
+// 1. Acesse https://aistudio.google.com/apikey
+// 2. Faça login com sua conta Google
+// 3. Clique em "Create API Key"
 // 4. Cole a chave no app em Configurações
 
 import { Platform } from 'react-native';
+import { File } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+const TRANSCRIPTION_PROMPT =
+  'Transcreva o áudio a seguir literalmente em português do Brasil. Responda apenas com o texto transcrito, sem comentários, aspas ou formatação adicional.';
 
 export async function transcribeAudio(audioUri: string): Promise<string> {
-  const apiKey = await AsyncStorage.getItem('groq_api_key');
+  const apiKey = await AsyncStorage.getItem('gemini_api_key');
 
   if (!apiKey) {
-    throw new Error('GROQ_KEY_MISSING');
+    throw new Error('GEMINI_KEY_MISSING');
   }
 
-  const formData = new FormData();
+  let base64Audio: string;
+  let mimeType: string;
 
   if (Platform.OS === 'web') {
-    // No navegador o FormData exige um Blob real, não o objeto {uri,type,name} do RN.
+    // No navegador a gravação é um blob: URL (audio/webm) — convertemos pra base64 via FileReader.
     const blob = await (await fetch(audioUri)).blob();
-    formData.append('file', blob, `recording_${Date.now()}.webm`);
+    base64Audio = await blobToBase64(blob);
+    mimeType = 'audio/webm';
   } else {
-    // Cria um arquivo temporário com extensão correta
-    const fileName = `recording_${Date.now()}.m4a`;
-
-    formData.append('file', {
-      uri: audioUri,
-      type: 'audio/m4a',
-      name: fileName,
-    } as any);
+    base64Audio = await new File(audioUri).base64();
+    mimeType = 'audio/m4a';
   }
 
-  formData.append('model', 'whisper-large-v3');
-  formData.append('language', 'pt'); // Português
-  formData.append('response_format', 'text');
-
-  const response = await fetch(GROQ_API_URL, {
+  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',
-    // Sem Content-Type manual: o fetch precisa gerar o boundary do multipart
-    // sozinho a partir do FormData (fixar o header quebra o parse no navegador).
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: formData,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: TRANSCRIPTION_PROMPT },
+            { inline_data: { mime_type: mimeType, data: base64Audio } },
+          ],
+        },
+      ],
+    }),
   });
 
   if (!response.ok) {
@@ -57,6 +59,21 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
     throw new Error(`Transcription failed: ${error}`);
   }
 
-  const transcription = await response.text();
-  return transcription.trim();
+  const json = await response.json();
+  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error('Transcription failed: resposta vazia do Gemini');
+  }
+
+  return text.trim();
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
