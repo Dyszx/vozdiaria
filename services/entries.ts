@@ -1,4 +1,5 @@
 // Entries Service — CRUD for voice note entries in Supabase (Postgres + Storage)
+import { Platform } from 'react-native';
 import { File } from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
@@ -60,6 +61,23 @@ function rowToCategory(row: any): Category {
 
 // Upload audio to Supabase Storage
 export async function uploadAudio(localUri: string, userId: string): Promise<string> {
+  if (Platform.OS === 'web') {
+    // No navegador, a gravação é um blob: URL (audio/webm) — expo-file-system
+    // não sabe ler isso, então buscamos o Blob diretamente via fetch.
+    const blob = await (await fetch(localUri)).blob();
+    const fileName = `audio_${userId}_${Date.now()}.webm`;
+    const path = `${userId}/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('audios')
+      .upload(path, blob, { contentType: 'audio/webm' });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from('audios').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
   const fileName = `audio_${userId}_${Date.now()}.m4a`;
   const path = `${userId}/${fileName}`;
 

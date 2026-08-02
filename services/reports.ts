@@ -1,4 +1,5 @@
 // Reports Service — Generate daily, weekly, monthly and all-time reports
+import { Platform } from 'react-native';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Entry } from './entries';
@@ -248,6 +249,20 @@ function generateReportHTML(report: AnyReport, type: ReportType): string {
 // Export report as PDF
 export async function exportReportAsPDF(report: AnyReport, type: ReportType): Promise<void> {
   const html = generateReportHTML(report, type);
+
+  if (Platform.OS === 'web') {
+    // Sem geração nativa de PDF no navegador: abrimos o relatório numa aba
+    // e usamos o diálogo de impressão do próprio navegador ("Salvar como PDF").
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      throw new Error('O navegador bloqueou a janela de impressão. Permita pop-ups para este site.');
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => printWindow.print();
+    return;
+  }
+
   const { uri } = await Print.printToFileAsync({ html });
   await Sharing.shareAsync(uri, {
     mimeType: 'application/pdf',
