@@ -31,6 +31,7 @@ import {
   permanentlyDeleteEntry,
   permanentlyDeleteAllEntries,
 } from '../../services/entries';
+import { getTasks } from '../../services/tasks';
 import { COLORS, SPACING, RADIUS, FONT, SHADOW } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import { formatDuration } from '../../services/reports';
@@ -65,6 +66,7 @@ function matchesSearch(text: string, query: string): boolean {
 
 interface EntryCardProps {
   entry: Entry;
+  taskCount: number;
   onDelete: (entry: Entry) => void;
   onEdit: (entry: Entry) => void;
   onChangeCategory: (entry: Entry) => void;
@@ -100,7 +102,7 @@ function TrashItem({ entry, onRestore, onDeleteForever }: TrashItemProps) {
   );
 }
 
-function EntryCard({ entry, onDelete, onEdit, onChangeCategory }: EntryCardProps) {
+function EntryCard({ entry, taskCount, onDelete, onEdit, onChangeCategory }: EntryCardProps) {
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
   const [loaded, setLoaded] = useState(false);
@@ -150,6 +152,14 @@ function EntryCard({ entry, onDelete, onEdit, onChangeCategory }: EntryCardProps
         </TouchableOpacity>
 
         <View style={styles.footerRight}>
+          {taskCount > 0 && (
+            <View style={styles.taskCountBadge}>
+              <Ionicons name="checkmark-done" size={13} color={COLORS.primary} />
+              <Text style={styles.taskCountText}>
+                {taskCount} tarefa{taskCount !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
           {entry.edited && (
             <Text style={styles.editedBadge}>Editado</Text>
           )}
@@ -168,6 +178,7 @@ function EntryCard({ entry, onDelete, onEdit, onChangeCategory }: EntryCardProps
 export default function EntriesScreen() {
   const { user } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [taskCounts, setTaskCounts] = useState<Map<string, number>>(new Map());
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
@@ -188,10 +199,21 @@ export default function EntriesScreen() {
 
   const loadEntries = useCallback(async () => {
     if (!user) return;
-    const data = await getEntries(user.id);
-    const cats = await getCategories(user.id);
+    const [data, cats, tasks] = await Promise.all([
+      getEntries(user.id),
+      getCategories(user.id),
+      getTasks(user.id),
+    ]);
     setEntries(data);
     setCategories(cats);
+
+    const counts = new Map<string, number>();
+    for (const task of tasks) {
+      if (!task.entryId) continue;
+      counts.set(task.entryId, (counts.get(task.entryId) ?? 0) + 1);
+    }
+    setTaskCounts(counts);
+
     setLoading(false);
     setRefreshing(false);
   }, [user]);
@@ -409,7 +431,14 @@ export default function EntriesScreen() {
             <View>
               <Text style={styles.dateHeader}>{date}</Text>
               {dayEntries.map((entry) => (
-                <EntryCard key={entry.id} entry={entry} onDelete={handleDelete} onEdit={handleEdit} onChangeCategory={setCategoryPickerEntry} />
+                <EntryCard
+                  key={entry.id}
+                  entry={entry}
+                  taskCount={taskCounts.get(entry.id!) ?? 0}
+                  onDelete={handleDelete}
+                  onEdit={handleEdit}
+                  onChangeCategory={setCategoryPickerEntry}
+                />
               ))}
             </View>
           )}
@@ -611,6 +640,16 @@ const styles = StyleSheet.create({
   footerActionText: { fontSize: 13, color: COLORS.textMuted },
   footerRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   editedBadge: { fontSize: 10, color: COLORS.textMuted, backgroundColor: COLORS.bg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  taskCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  taskCountText: { fontSize: 11, color: COLORS.primary, ...FONT.semibold },
   iconAction: { padding: 4 },
 
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.md },
