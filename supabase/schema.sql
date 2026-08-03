@@ -73,11 +73,20 @@ create table if not exists tasks (
   due_date timestamptz,
   done boolean not null default false,
   source text not null default 'ai', -- 'ai' | 'keyword'
+  category_id uuid references categories(id) on delete set null,
+  category_name text,
+  category_color text,
   created_at timestamptz not null default now(),
   completed_at timestamptz
 );
 
+-- Se a tabela tasks já existia antes das categorias serem adicionadas, rode isto também:
+-- alter table tasks add column if not exists category_id uuid references categories(id) on delete set null;
+-- alter table tasks add column if not exists category_name text;
+-- alter table tasks add column if not exists category_color text;
+
 create index if not exists tasks_user_id_done_idx on tasks (user_id, done, due_date);
+create index if not exists tasks_user_id_category_id_idx on tasks (user_id, category_id);
 
 alter table tasks enable row level security;
 

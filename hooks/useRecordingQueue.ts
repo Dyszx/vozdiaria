@@ -78,7 +78,11 @@ export function useRecordingQueue() {
         try {
           const foundTasks = await extractTasks(text, next.createdAt);
           if (foundTasks.length > 0) {
-            await createTasksForEntry(foundTasks, entryId, next.userId);
+            await createTasksForEntry(foundTasks, entryId, next.userId, {
+              id: next.categoryId,
+              name: next.categoryName,
+              color: next.categoryColor,
+            });
           }
         } catch (taskError) {
           console.error('Task extraction error:', taskError);

@@ -1,32 +1,71 @@
-// Tasks Screen — checklist of tasks auto-extracted from voice notes
+// Tasks Screen — checklist of tasks auto-extracted from voice notes, grouped by category
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { format, isToday, isPast, startOfDay } from 'date-fns';
+import { format, isToday, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFocusEffect } from 'expo-router';
 import { alert } from '../../utils/alert';
 import { getTasks, toggleTaskDone, deleteTask, Task } from '../../services/tasks';
+import { getCategories, Category } from '../../services/entries';
 import { COLORS, SPACING, RADIUS, FONT, SHADOW } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 
-type SectionKey = 'overdue' | 'today' | 'upcoming' | 'noDate' | 'done';
-
-const SECTION_LABELS: Record<SectionKey, string> = {
-  overdue: 'Atrasadas',
-  today: 'Hoje',
-  upcoming: 'Próximas',
-  noDate: 'Sem prazo',
-  done: 'Concluídas',
-};
+interface Section {
+  key: string;
+  label: string;
+  color: string | null; // null = seção "Concluídas" (usa ícone em vez de bolinha)
+  tasks: Task[];
+}
 
 function dueDateColor(task: Task): string {
   if (!task.dueDate) return COLORS.textMuted;
   if (isPast(task.dueDate) && !isToday(task.dueDate)) return COLORS.accentDanger;
   if (isToday(task.dueDate)) return COLORS.accentWarn;
   return COLORS.textSecondary;
+}
+
+function compareByDueDate(a: Task, b: Task): number {
+  if (!a.dueDate && !b.dueDate) return 0;
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+  return a.dueDate.getTime() - b.dueDate.getTime();
+}
+
+// Agrupa as tarefas pendentes por categoria, na mesma ordem das categorias do
+// usuário; tarefas de categorias já excluídas (ou de antes dessa coluna existir)
+// caem numa seção "Sem categoria" separada por nome, pra não misturar categorias
+// diferentes que já foram apagadas.
+function buildCategorySections(pending: Task[], categories: Category[]): Section[] {
+  const byKey = new Map<string, Section>();
+
+  for (const task of pending) {
+    const key = task.categoryId ?? `orphan:${task.categoryName ?? 'none'}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        key,
+        label: task.categoryName ?? 'Sem categoria',
+        color: task.categoryColor ?? COLORS.textMuted,
+        tasks: [],
+      });
+    }
+    byKey.get(key)!.tasks.push(task);
+  }
+
+  const ordered: Section[] = [];
+  for (const cat of categories) {
+    const section = byKey.get(cat.id!);
+    if (section) {
+      ordered.push(section);
+      byKey.delete(cat.id!);
+    }
+  }
+  // Sobras: categorias que a tarefa guarda mas que não estão mais na lista atual do usuário.
+  ordered.push(...byKey.values());
+
+  return ordered.map((section) => ({ ...section, tasks: [...section.tasks].sort(compareByDueDate) }));
 }
 
 interface TaskRowProps {
@@ -65,13 +104,15 @@ function TaskRow({ task, onToggle, onDelete }: TaskRowProps) {
 export default function TasksScreen() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDone, setShowDone] = useState(false);
 
   const loadTasks = useCallback(async () => {
     if (!user) return;
-    const data = await getTasks(user.id);
+    const [data, cats] = await Promise.all([getTasks(user.id), getCategories(user.id)]);
     setTasks(data);
+    setCategories(cats);
     setLoading(false);
   }, [user]);
 
@@ -102,20 +143,12 @@ export default function TasksScreen() {
     ]);
   };
 
-  const today = startOfDay(new Date());
   const pending = tasks.filter((t) => !t.done);
   const doneTasks = tasks.filter((t) => t.done);
 
-  const allSections: { key: SectionKey; tasks: Task[] }[] = [
-    { key: 'overdue', tasks: pending.filter((t) => t.dueDate && t.dueDate < today) },
-    { key: 'today', tasks: pending.filter((t) => t.dueDate && isToday(t.dueDate)) },
-    { key: 'upcoming', tasks: pending.filter((t) => t.dueDate && t.dueDate >= today && !isToday(t.dueDate)) },
-    { key: 'noDate', tasks: pending.filter((t) => !t.dueDate) },
-  ];
-  const sections = allSections.filter((section) => section.tasks.length > 0);
-
+  const sections = buildCategorySections(pending, categories);
   if (showDone && doneTasks.length > 0) {
-    sections.push({ key: 'done', tasks: doneTasks });
+    sections.push({ key: 'done', label: 'Concluídas', color: null, tasks: doneTasks });
   }
 
   if (loading) {
@@ -161,7 +194,14 @@ export default function TasksScreen() {
           contentContainerStyle={styles.listContent}
           renderItem={({ item: section }) => (
             <View>
-              <Text style={styles.sectionHeader}>{SECTION_LABELS[section.key]}</Text>
+              <View style={styles.sectionHeaderRow}>
+                {section.color ? (
+                  <View style={[styles.categoryDot, { backgroundColor: section.color }]} />
+                ) : (
+                  <Ionicons name="checkmark-done" size={12} color={COLORS.textMuted} />
+                )}
+                <Text style={styles.sectionHeader}>{section.label}</Text>
+              </View>
               <View style={styles.card}>
                 {section.tasks.map((task, index) => (
                   <View key={task.id}>
@@ -193,14 +233,20 @@ const styles = StyleSheet.create({
   doneToggleText: { color: COLORS.textSecondary, fontSize: 12, ...FONT.medium },
 
   listContent: { paddingHorizontal: SPACING.lg, paddingBottom: 100 },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  categoryDot: { width: 8, height: 8, borderRadius: 4 },
   sectionHeader: {
     fontSize: 12,
     color: COLORS.textMuted,
     letterSpacing: 1,
     ...FONT.semibold,
     textTransform: 'uppercase',
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
   },
 
   card: {

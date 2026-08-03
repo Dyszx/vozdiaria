@@ -12,6 +12,9 @@ export interface Task {
   dueDate: Date | null;
   done: boolean;
   source: 'ai' | 'keyword';
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
   createdAt: Date;
   completedAt: Date | null;
   userId: string;
@@ -27,6 +30,9 @@ function rowToTask(row: any): Task {
     dueDate: row.due_date ? new Date(row.due_date) : null,
     done: row.done,
     source: row.source,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    categoryColor: row.category_color,
     createdAt: new Date(row.created_at),
     completedAt: row.completed_at ? new Date(row.completed_at) : null,
     userId: row.user_id,
@@ -125,11 +131,14 @@ export async function extractTasks(text: string, referenceDate: Date): Promise<E
   }
 }
 
-// Salva em lote as tarefas encontradas para uma nota recém-criada
+// Salva em lote as tarefas encontradas para uma nota recém-criada. A categoria é
+// copiada da nota (mesmo padrão de entries.ts) pra sobreviver caso a categoria
+// original seja apagada depois — a tarefa só perde o vínculo vivo, não o rótulo.
 export async function createTasksForEntry(
   found: ExtractedTask[],
   entryId: string,
-  userId: string
+  userId: string,
+  category: { id: string; name: string; color: string }
 ): Promise<void> {
   if (found.length === 0) return;
 
@@ -140,6 +149,9 @@ export async function createTasksForEntry(
       title: task.title,
       due_date: task.dueDate ? task.dueDate.toISOString() : null,
       source: task.source,
+      category_id: category.id,
+      category_name: category.name,
+      category_color: category.color,
     }))
   );
 
