@@ -19,6 +19,27 @@ export const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/
 const TRANSCRIPTION_PROMPT =
   'Transcreva o áudio a seguir literalmente em português do Brasil. Responda apenas com o texto transcrito, sem comentários, aspas ou formatação adicional.';
 
+// 503 (sobrecarga) e 429 (rate limit) são picos passageiros do lado do Google —
+// vale tentar de novo antes de mostrar erro pro usuário.
+const RETRYABLE_STATUS = new Set([503, 429]);
+const MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function fetchGeminiWithRetry(url: string, options: RequestInit): Promise<Response> {
+  let response: Response;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    response = await fetch(url, options);
+    const shouldRetry = RETRYABLE_STATUS.has(response.status) && attempt < MAX_ATTEMPTS;
+    if (!shouldRetry) return response;
+    await sleep(RETRY_DELAY_MS * attempt);
+  }
+  return response!;
+}
+
 export async function transcribeAudio(audioUri: string): Promise<string> {
   const apiKey = await AsyncStorage.getItem('gemini_api_key');
 
@@ -39,7 +60,7 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
     mimeType = 'audio/m4a';
   }
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+  const response = await fetchGeminiWithRetry(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

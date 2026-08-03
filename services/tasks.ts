@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from './supabase';
-import { GEMINI_API_URL } from './transcription';
+import { GEMINI_API_URL, fetchGeminiWithRetry } from './transcription';
 
 export interface Task {
   id?: string;
@@ -75,7 +75,7 @@ Se não houver nenhuma tarefa, responda [].
 
 Texto: "${text}"`;
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+  const response = await fetchGeminiWithRetry(`${GEMINI_API_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
