@@ -77,7 +77,8 @@ create table if not exists tasks (
   category_name text,
   category_color text,
   created_at timestamptz not null default now(),
-  completed_at timestamptz
+  completed_at timestamptz,
+  deleted_at timestamptz
 );
 
 -- Se a tabela tasks já existia antes das categorias serem adicionadas, rode isto também:
@@ -85,8 +86,12 @@ create table if not exists tasks (
 -- alter table tasks add column if not exists category_name text;
 -- alter table tasks add column if not exists category_color text;
 
+-- Se a tabela tasks já existia antes da lixeira ser adicionada, rode isto também:
+-- alter table tasks add column if not exists deleted_at timestamptz;
+
 create index if not exists tasks_user_id_done_idx on tasks (user_id, done, due_date);
 create index if not exists tasks_user_id_category_id_idx on tasks (user_id, category_id);
+create index if not exists tasks_deleted_at_idx on tasks (user_id, deleted_at);
 
 alter table tasks enable row level security;
 

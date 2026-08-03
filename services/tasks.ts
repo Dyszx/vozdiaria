@@ -20,6 +20,7 @@ export interface Task {
   categoryColor: string | null;
   createdAt: Date;
   completedAt: Date | null;
+  deletedAt: Date | null;
   userId: string;
 }
 
@@ -38,6 +39,7 @@ function rowToTask(row: any): Task {
     categoryColor: row.category_color,
     createdAt: new Date(row.created_at),
     completedAt: row.completed_at ? new Date(row.completed_at) : null,
+    deletedAt: row.deleted_at ? new Date(row.deleted_at) : null,
     userId: row.user_id,
   };
 }
@@ -164,6 +166,7 @@ export async function getTasks(userId: string): Promise<Task[]> {
     .from('tasks')
     .select('*')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .order('due_date', { ascending: true, nullsFirst: false });
 
   if (error) throw error;
@@ -179,7 +182,43 @@ export async function toggleTaskDone(taskId: string, done: boolean): Promise<voi
   if (error) throw error;
 }
 
+// Move task to trash (soft delete)
 export async function deleteTask(taskId: string): Promise<void> {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', taskId);
+  if (error) throw error;
+}
+
+// Get tasks currently in the trash
+export async function getDeletedTasks(userId: string): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(rowToTask);
+}
+
+// Restore a task from the trash
+export async function restoreTask(taskId: string): Promise<void> {
+  const { error } = await supabase.from('tasks').update({ deleted_at: null }).eq('id', taskId);
+  if (error) throw error;
+}
+
+// Permanently delete a task
+export async function permanentlyDeleteTask(taskId: string): Promise<void> {
   const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+  if (error) throw error;
+}
+
+// Permanently delete every task passed in (used to empty the trash in one go)
+export async function permanentlyDeleteAllTasks(taskIds: string[]): Promise<void> {
+  if (taskIds.length === 0) return;
+  const { error } = await supabase.from('tasks').delete().in('id', taskIds);
   if (error) throw error;
 }
