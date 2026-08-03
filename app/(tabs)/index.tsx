@@ -16,9 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { alert } from '../../utils/alert';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
-import { transcribeAudio } from '../../services/transcription';
-import { createEntry, getCategories, Category } from '../../services/entries';
-import { extractTasks, createTasksForEntry } from '../../services/tasks';
+import { useRecordingQueue, QueueItem } from '../../hooks/useRecordingQueue';
+import { getCategories, Category } from '../../services/entries';
 import { COLORS, SPACING, RADIUS, FONT, SHADOW } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
@@ -28,7 +27,6 @@ export default function RecordScreen() {
   const { user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Selecione uma categoria e comece a gravar');
   const [hasApiKey, setHasApiKey] = useState(false);
 
@@ -47,6 +45,8 @@ export default function RecordScreen() {
     stopRecording,
     resetRecording,
   } = useAudioRecorder();
+
+  const { queue, enqueue, retryItem, dismissItem } = useRecordingQueue();
 
   useEffect(() => {
     if (isRecording && !isPaused) {
@@ -151,56 +151,18 @@ export default function RecordScreen() {
     const uri = await stopRecording();
     if (!uri || !user || !selectedCategory) return;
 
-    setIsTranscribing(true);
-    setStatusMessage('🤖 Transcrevendo seu áudio...');
+    enqueue({
+      audioUri: uri,
+      categoryId: selectedCategory.id!,
+      categoryName: selectedCategory.name,
+      categoryColor: selectedCategory.color,
+      duration,
+      createdAt: new Date(),
+      userId: user.id,
+    });
 
-    try {
-      const text = await transcribeAudio(uri);
-      setStatusMessage('💾 Salvando nota...');
-
-      const entryId = await createEntry(
-        {
-          text,
-          audioUrl: '',
-          categoryId: selectedCategory.id!,
-          categoryName: selectedCategory.name,
-          categoryColor: selectedCategory.color,
-          createdAt: new Date(),
-          duration,
-          edited: false,
-          userId: user.id,
-          deletedAt: null,
-        },
-        uri
-      );
-
-      try {
-        const foundTasks = await extractTasks(text, new Date());
-        if (foundTasks.length > 0) {
-          await createTasksForEntry(foundTasks, entryId, user.id);
-        }
-      } catch (taskError) {
-        // Extração de tarefas é um extra sobre a nota — uma falha aqui nunca deve impedir o salvamento dela.
-        console.error('Task extraction error:', taskError);
-      }
-
-      setStatusMessage('✅ Nota salva com sucesso!');
-      resetRecording();
-
-      setTimeout(() => {
-        setStatusMessage('Selecione uma categoria e comece a gravar');
-      }, 3000);
-    } catch (error: any) {
-      console.error('Transcription/save error:', error);
-      if (error.message === 'GEMINI_KEY_MISSING') {
-        alert('Erro', 'Chave Gemini não configurada. Vá em Configurações.');
-      } else {
-        alert('Erro na Transcrição', String(error?.message ?? error));
-      }
-      setStatusMessage('Selecione uma categoria e comece a gravar');
-    } finally {
-      setIsTranscribing(false);
-    }
+    resetRecording();
+    setStatusMessage('Selecione uma categoria e comece a gravar');
   };
 
   const recordButtonColor = isRecording
@@ -282,7 +244,7 @@ export default function RecordScreen() {
         {/* Main Record Button */}
         <TouchableOpacity
           onPress={handleRecordPress}
-          disabled={isLoading || isTranscribing}
+          disabled={isLoading}
           style={styles.recordButtonWrap}
           activeOpacity={0.85}
         >
@@ -291,7 +253,7 @@ export default function RecordScreen() {
               colors={recordButtonColor as [string, string]}
               style={[styles.recordButton, isRecording && styles.recordButtonActive]}
             >
-              {isLoading || isTranscribing ? (
+              {isLoading ? (
                 <ActivityIndicator color="#fff" size="large" />
               ) : isRecording && !isPaused ? (
                 <Ionicons name="mic" size={isRecording ? 32 : 48} color="#fff" />
@@ -327,16 +289,78 @@ export default function RecordScreen() {
         )}
       </View>
 
-      {/* Quick Tip */}
-      {!isRecording && !isTranscribing && (
-        <View style={styles.tipCard}>
-          <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
-          <Text style={styles.tipText}>
-            Fale naturalmente. O Whisper entende português com alta precisão.
-          </Text>
+      {/* Fila de processamento (transcrição/salvamento rodando em segundo plano) */}
+      {!isRecording && queue.length > 0 ? (
+        <View style={styles.queuePanel}>
+          {queue.map((item) => (
+            <QueueRow key={item.id} item={item} onRetry={retryItem} onDismiss={dismissItem} />
+          ))}
         </View>
+      ) : (
+        !isRecording && (
+          <View style={styles.tipCard}>
+            <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.tipText}>
+              Fale naturalmente. O Whisper entende português com alta precisão.
+            </Text>
+          </View>
+        )
       )}
     </SafeAreaView>
+  );
+}
+
+interface QueueRowProps {
+  item: QueueItem;
+  onRetry: (id: string) => void;
+  onDismiss: (id: string) => void;
+}
+
+function QueueRow({ item, onRetry, onDismiss }: QueueRowProps) {
+  const statusLabel =
+    item.status === 'transcribing'
+      ? '🤖 Transcrevendo...'
+      : item.status === 'saving'
+      ? '💾 Salvando...'
+      : item.status === 'done'
+      ? '✅ Salvo!'
+      : item.errorMessage ?? 'Erro ao processar';
+
+  return (
+    <View style={styles.queueRow}>
+      {item.status === 'transcribing' || item.status === 'saving' ? (
+        <ActivityIndicator color={COLORS.primary} size="small" />
+      ) : item.status === 'done' ? (
+        <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+      ) : (
+        <Ionicons name="alert-circle" size={20} color={COLORS.error} />
+      )}
+
+      <View style={styles.queueRowBody}>
+        <View style={styles.queueRowHeader}>
+          <View style={[styles.categoryDot, { backgroundColor: item.categoryColor }]} />
+          <Text style={styles.queueRowCategory}>{item.categoryName}</Text>
+          <Text style={styles.queueRowDuration}>{formatDuration(item.duration)}</Text>
+        </View>
+        <Text
+          style={[styles.queueRowStatus, item.status === 'error' && { color: COLORS.error }]}
+          numberOfLines={2}
+        >
+          {statusLabel}
+        </Text>
+      </View>
+
+      {item.status === 'error' && (
+        <View style={styles.queueRowActions}>
+          <TouchableOpacity onPress={() => onRetry(item.id)}>
+            <Text style={styles.queueRetryText}>Tentar novamente</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDismiss(item.id)} style={styles.iconAction}>
+            <Ionicons name="close" size={18} color={COLORS.textMuted} />
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -426,4 +450,24 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   tipText: { flex: 1, fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
+
+  queuePanel: { marginHorizontal: SPACING.lg, marginBottom: SPACING.lg, gap: SPACING.sm },
+  queueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  queueRowBody: { flex: 1 },
+  queueRowHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  queueRowCategory: { color: COLORS.text, fontSize: 13, ...FONT.semibold },
+  queueRowDuration: { color: COLORS.textMuted, fontSize: 12, marginLeft: 'auto' },
+  queueRowStatus: { color: COLORS.textSecondary, fontSize: 12, marginTop: 2 },
+  queueRowActions: { alignItems: 'flex-end', gap: 4 },
+  queueRetryText: { color: COLORS.primary, fontSize: 12, ...FONT.semibold },
+  iconAction: { padding: 4 },
 });
