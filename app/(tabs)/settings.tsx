@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { alert } from '../../utils/alert';
+import { isValidEmail } from '../../utils/validation';
 import { getCategories, addCategory, deleteCategory, Category } from '../../services/entries';
 import { COLORS, SPACING, RADIUS, FONT } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -112,7 +113,7 @@ export default function SettingsScreen() {
   };
 
   const handleCreateBackup = async () => {
-    if (!backupEmail.includes('@') || !backupEmail.includes('.')) {
+    if (!isValidEmail(backupEmail)) {
       alert('Erro', 'Digite um e-mail válido.');
       return;
     }

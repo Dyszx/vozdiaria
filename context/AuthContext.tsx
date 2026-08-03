@@ -8,24 +8,30 @@ import { getCategories, createDefaultCategories } from '../services/entries';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  approved: boolean;
+  isAdmin: boolean;
+  signUpWithEmailPassword: (email: string, password: string) => Promise<void>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   linkEmailPassword: (email: string, password: string) => Promise<void>;
-  signInWithEmailPassword: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  signInWithGoogle: async () => {},
+  approved: false,
+  isAdmin: false,
+  signUpWithEmailPassword: async () => {},
+  signInWithEmailPassword: async () => {},
   signOut: async () => {},
   linkEmailPassword: async () => {},
-  signInWithEmailPassword: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [approved, setApproved] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const ensureDefaultCategories = async (sessionUser: User) => {
@@ -35,46 +41,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // Sem linha em profiles (ainda não foi aprovado manualmente) conta como
+    // não aprovado — fecha por padrão, nunca abre.
+    const loadProfile = async (sessionUser: User) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('approved, is_admin')
+        .eq('id', sessionUser.id)
+        .maybeSingle();
+      setApproved(data?.approved ?? false);
+      setIsAdmin(data?.is_admin ?? false);
+    };
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        // App pessoal, sem tela de login: cria uma sessão anônima automaticamente.
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) console.error('Anonymous sign in error:', error);
-        return;
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await Promise.all([ensureDefaultCategories(session.user), loadProfile(session.user)]);
       }
-      setUser(session.user);
       setLoading(false);
-      await ensureDefaultCategories(session.user);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session: Session | null) => {
         setUser(session?.user ?? null);
+        if (session?.user) {
+          await Promise.all([ensureDefaultCategories(session.user), loadProfile(session.user)]);
+        } else {
+          setApproved(false);
+          setIsAdmin(false);
+        }
         setLoading(false);
-        if (session?.user) await ensureDefaultCategories(session.user);
       }
     );
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
-    // Note: OAuth com deep link precisa de configuração extra no Expo
-    // (scheme em app.json + expo-web-browser). Configure em Authentication >
-    // Providers > Google no painel Supabase antes de habilitar este fluxo.
-    try {
-      await supabase.auth.signInWithOAuth({ provider: 'google' });
-    } catch (error) {
-      console.error('Sign in error:', error);
-    }
+  const signUpWithEmailPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+  };
+
+  const signInWithEmailPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    await AsyncStorage.removeItem('gemini_api_key');
-    // Sem tela de login, gera uma nova sessão anônima na hora para o app continuar usável.
-    // Nota: isso perde acesso às notas da sessão anterior (são vinculadas ao user_id anônimo antigo).
-    await supabase.auth.signInAnonymously();
+    await AsyncStorage.removeItem('groq_api_key');
   };
 
   // Transforma a conta anônima atual em uma conta permanente (mesmo user_id,
@@ -85,16 +100,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  // Entra numa conta permanente já existente (ex: depois de reinstalar o app
-  // ou trocar de aparelho), substituindo a sessão anônima atual.
-  const signInWithEmailPassword = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  };
-
   return (
     <AuthContext.Provider
-      value={{ user, loading, signInWithGoogle, signOut, linkEmailPassword, signInWithEmailPassword }}
+      value={{
+        user,
+        loading,
+        approved,
+        isAdmin,
+        signUpWithEmailPassword,
+        signInWithEmailPassword,
+        signOut,
+        linkEmailPassword,
+      }}
     >
       {children}
     </AuthContext.Provider>
