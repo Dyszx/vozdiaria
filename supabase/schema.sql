@@ -129,6 +129,13 @@ create policy "Admins can update any profile"
   using (is_admin())
   with check (is_admin());
 
+-- Recusar um cadastro pendente apaga a linha em profiles (não a conta em
+-- auth.users) — a pessoa fica permanentemente sem perfil, então o app trata
+-- como "não aprovado" pra sempre, sem precisar de acesso admin ao Auth.
+create policy "Admins can delete any profile"
+  on profiles for delete
+  using (is_admin());
+
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin

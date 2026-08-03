@@ -7,16 +7,18 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFocusEffect } from 'expo-router';
 import { alert } from '../../utils/alert';
-import { getAllProfiles, setApproval, Profile } from '../../services/profiles';
+import { getAllProfiles, setApproval, rejectProfile, Profile } from '../../services/profiles';
 import { COLORS, SPACING, RADIUS, FONT } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 
 interface ProfileRowProps {
   profile: Profile;
-  onToggle: (profile: Profile) => void;
+  onApprove: (profile: Profile) => void;
+  onRevoke: (profile: Profile) => void;
+  onReject: (profile: Profile) => void;
 }
 
-function ProfileRow({ profile, onToggle }: ProfileRowProps) {
+function ProfileRow({ profile, onApprove, onRevoke, onReject }: ProfileRowProps) {
   return (
     <View style={styles.row}>
       <View style={styles.rowBody}>
@@ -27,15 +29,19 @@ function ProfileRow({ profile, onToggle }: ProfileRowProps) {
       </View>
       {profile.isAdmin ? (
         <Text style={styles.adminBadge}>Admin</Text>
-      ) : (
-        <TouchableOpacity
-          style={[styles.actionBtn, profile.approved && styles.actionBtnDanger]}
-          onPress={() => onToggle(profile)}
-        >
-          <Text style={[styles.actionBtnText, profile.approved && styles.actionBtnDangerText]}>
-            {profile.approved ? 'Revogar' : 'Aprovar'}
-          </Text>
+      ) : profile.approved ? (
+        <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => onRevoke(profile)}>
+          <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Revogar</Text>
         </TouchableOpacity>
+      ) : (
+        <View style={styles.rowActions}>
+          <TouchableOpacity style={[styles.actionBtn, styles.actionBtnDanger]} onPress={() => onReject(profile)}>
+            <Text style={[styles.actionBtnText, styles.actionBtnDangerText]}>Recusar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => onApprove(profile)}>
+            <Text style={styles.actionBtnText}>Aprovar</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -62,20 +68,48 @@ export default function AdminScreen() {
   // Defesa extra: a aba já fica escondida pra quem não é admin, isso cobre acesso direto pela URL.
   if (!isAdmin) return null;
 
-  const handleToggle = (profile: Profile) => {
-    const next = !profile.approved;
+  const handleApprove = (profile: Profile) => {
+    alert('Aprovar Conta', `Liberar o acesso de "${profile.email}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Aprovar',
+        onPress: async () => {
+          await setApproval(profile.id, true);
+          await loadProfiles();
+        },
+      },
+    ]);
+  };
+
+  const handleRevoke = (profile: Profile) => {
     alert(
-      next ? 'Aprovar Conta' : 'Revogar Acesso',
-      next
-        ? `Liberar o acesso de "${profile.email}"?`
-        : `Bloquear o acesso de "${profile.email}"? A conta continua existindo, só perde acesso ao app.`,
+      'Revogar Acesso',
+      `Bloquear o acesso de "${profile.email}"? A conta continua existindo, só perde acesso ao app.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: next ? 'Aprovar' : 'Revogar',
-          style: next ? 'default' : 'destructive',
+          text: 'Revogar',
+          style: 'destructive',
           onPress: async () => {
-            await setApproval(profile.id, next);
+            await setApproval(profile.id, false);
+            await loadProfiles();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReject = (profile: Profile) => {
+    alert(
+      'Recusar Cadastro',
+      `Recusar "${profile.email}"? A pessoa não vai conseguir entrar no app.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Recusar',
+          style: 'destructive',
+          onPress: async () => {
+            await rejectProfile(profile.id);
             await loadProfiles();
           },
         },
@@ -110,7 +144,15 @@ export default function AdminScreen() {
             {pending.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma conta esperando aprovação.</Text>
             ) : (
-              pending.map((p) => <ProfileRow key={p.id} profile={p} onToggle={handleToggle} />)
+              pending.map((p) => (
+                <ProfileRow
+                  key={p.id}
+                  profile={p}
+                  onApprove={handleApprove}
+                  onRevoke={handleRevoke}
+                  onReject={handleReject}
+                />
+              ))
             )}
           </View>
         </View>
@@ -121,7 +163,15 @@ export default function AdminScreen() {
             {approvedList.length === 0 ? (
               <Text style={styles.emptyText}>Nenhuma conta aprovada ainda.</Text>
             ) : (
-              approvedList.map((p) => <ProfileRow key={p.id} profile={p} onToggle={handleToggle} />)
+              approvedList.map((p) => (
+                <ProfileRow
+                  key={p.id}
+                  profile={p}
+                  onApprove={handleApprove}
+                  onRevoke={handleRevoke}
+                  onReject={handleReject}
+                />
+              ))
             )}
           </View>
         </View>
@@ -158,6 +208,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: RADIUS.full,
   },
+  rowActions: { flexDirection: 'row', gap: SPACING.sm },
   actionBtn: {
     backgroundColor: COLORS.primary,
     paddingHorizontal: 14,

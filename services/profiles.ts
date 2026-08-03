@@ -35,3 +35,11 @@ export async function setApproval(userId: string, approved: boolean): Promise<vo
   const { error } = await supabase.from('profiles').update({ approved }).eq('id', userId);
   if (error) throw error;
 }
+
+// Recusa um cadastro pendente. Apaga só a linha em profiles (não dá pra
+// apagar a conta de auth.users a partir do app, isso exige a service role) —
+// sem perfil, o AuthContext trata como "não aprovado" pra sempre.
+export async function rejectProfile(userId: string): Promise<void> {
+  const { error } = await supabase.from('profiles').delete().eq('id', userId);
+  if (error) throw error;
+}
