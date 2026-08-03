@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { alert } from '../../utils/alert';
-import { isValidEmail } from '../../utils/validation';
 import { getCategories, addCategory, deleteCategory, Category } from '../../services/entries';
 import { COLORS, SPACING, RADIUS, FONT } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -26,7 +25,7 @@ const CATEGORY_COLORS = [
 ];
 
 export default function SettingsScreen() {
-  const { user, signOut, linkEmailPassword, signInWithEmailPassword } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const [groqKey, setGroqKey] = useState('');
   const [savedKey, setSavedKey] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -34,17 +33,6 @@ export default function SettingsScreen() {
   const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
-
-  const [showBackupForm, setShowBackupForm] = useState(false);
-  const [backupEmail, setBackupEmail] = useState('');
-  const [backupPassword, setBackupPassword] = useState('');
-  const [backupPasswordConfirm, setBackupPasswordConfirm] = useState('');
-  const [savingBackup, setSavingBackup] = useState(false);
-
-  const [showSignInForm, setShowSignInForm] = useState(false);
-  const [signInEmail, setSignInEmail] = useState('');
-  const [signInPassword, setSignInPassword] = useState('');
-  const [signingIn, setSigningIn] = useState(false);
 
   const loadData = useCallback(async () => {
     const key = await AsyncStorage.getItem('groq_api_key');
@@ -112,54 +100,6 @@ export default function SettingsScreen() {
     return key.slice(0, 8) + '•'.repeat(20) + key.slice(-4);
   };
 
-  const handleCreateBackup = async () => {
-    if (!isValidEmail(backupEmail)) {
-      alert('Erro', 'Digite um e-mail válido.');
-      return;
-    }
-    if (backupPassword.length < 6) {
-      alert('Erro', 'A senha precisa ter pelo menos 6 caracteres.');
-      return;
-    }
-    if (backupPassword !== backupPasswordConfirm) {
-      alert('Erro', 'As senhas não são iguais.');
-      return;
-    }
-    setSavingBackup(true);
-    try {
-      await linkEmailPassword(backupEmail.trim(), backupPassword);
-      setShowBackupForm(false);
-      setBackupPassword('');
-      setBackupPasswordConfirm('');
-      alert(
-        '✅ Quase lá',
-        'Enviamos um e-mail de confirmação para ' + backupEmail.trim() + '. Confirme para proteger sua conta.'
-      );
-    } catch (error: any) {
-      alert('Erro', error.message ?? 'Não foi possível criar o backup.');
-    } finally {
-      setSavingBackup(false);
-    }
-  };
-
-  const handleSignIn = async () => {
-    if (!signInEmail.trim() || !signInPassword) {
-      alert('Erro', 'Preencha e-mail e senha.');
-      return;
-    }
-    setSigningIn(true);
-    try {
-      await signInWithEmailPassword(signInEmail.trim(), signInPassword);
-      setShowSignInForm(false);
-      setSignInPassword('');
-      alert('✅ Pronto', 'Login feito com sucesso. Suas notas devem aparecer em instantes.');
-    } catch (error: any) {
-      alert('Erro', error.message ?? 'Não foi possível entrar.');
-    } finally {
-      setSigningIn(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient colors={['#0F0F1A', '#1A1A2E']} style={StyleSheet.absoluteFill} />
@@ -168,97 +108,6 @@ export default function SettingsScreen() {
         <View style={styles.header}>
           <Text style={styles.title}>Configurações</Text>
         </View>
-
-        {/* Account Backup Section */}
-        {user?.is_anonymous !== false && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔒 BACKUP DA CONTA</Text>
-            <View style={styles.card}>
-              <Text style={styles.cardDesc}>
-                Sua conta hoje é <Text style={{ color: COLORS.accentWarn }}>anônima</Text>: se desinstalar o app, limpar
-                os dados dele ou trocar de celular, você perde o acesso às suas notas (elas continuam salvas, mas
-                ficam inacessíveis). Crie um e-mail e senha pra proteger isso, sem perder nada do que já tem.
-              </Text>
-
-              {!showBackupForm ? (
-                <TouchableOpacity style={styles.configureBtn} onPress={() => setShowBackupForm(true)}>
-                  <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />
-                  <Text style={styles.configureBtnText}>Criar Backup da Conta</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.addCatForm}>
-                  <TextInput
-                    style={styles.catInput}
-                    placeholder="seu@email.com"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={backupEmail}
-                    onChangeText={setBackupEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                  <TextInput
-                    style={styles.catInput}
-                    placeholder="Senha (mín. 6 caracteres)"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={backupPassword}
-                    onChangeText={setBackupPassword}
-                    secureTextEntry
-                  />
-                  <TextInput
-                    style={styles.catInput}
-                    placeholder="Confirmar senha"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={backupPasswordConfirm}
-                    onChangeText={setBackupPasswordConfirm}
-                    secureTextEntry
-                  />
-                  <View style={styles.addCatActions}>
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowBackupForm(false)}>
-                      <Text style={styles.cancelBtnText}>Cancelar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.addBtn} onPress={handleCreateBackup} disabled={savingBackup}>
-                      <Text style={styles.addBtnText}>{savingBackup ? 'Salvando...' : 'Salvar'}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              {!showSignInForm ? (
-                <TouchableOpacity onPress={() => setShowSignInForm(true)}>
-                  <Text style={styles.linkText}>Já tenho uma conta, entrar →</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.addCatForm}>
-                  <TextInput
-                    style={styles.catInput}
-                    placeholder="seu@email.com"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={signInEmail}
-                    onChangeText={setSignInEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                  <TextInput
-                    style={styles.catInput}
-                    placeholder="Senha"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={signInPassword}
-                    onChangeText={setSignInPassword}
-                    secureTextEntry
-                  />
-                  <View style={styles.addCatActions}>
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowSignInForm(false)}>
-                      <Text style={styles.cancelBtnText}>Cancelar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.addBtn} onPress={handleSignIn} disabled={signingIn}>
-                      <Text style={styles.addBtnText}>{signingIn ? 'Entrando...' : 'Entrar'}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
 
         {/* Account Section */}
         <View style={styles.section}>
@@ -269,7 +118,9 @@ export default function SettingsScreen() {
                 <Ionicons name="person" size={24} color={COLORS.primary} />
               </View>
               <View style={styles.accountInfo}>
-                <Text style={styles.accountName}>{user?.user_metadata?.full_name ?? 'Usuário'}</Text>
+                <Text style={styles.accountName}>
+                  {user?.user_metadata?.full_name ?? (isAdmin ? 'Admin' : 'Usuário')}
+                </Text>
                 <Text style={styles.accountEmail}>{user?.email ?? 'Não conectado'}</Text>
               </View>
               <TouchableOpacity onPress={signOut}>

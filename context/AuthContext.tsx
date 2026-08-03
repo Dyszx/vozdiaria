@@ -13,7 +13,6 @@ interface AuthContextType {
   signUpWithEmailPassword: (email: string, password: string) => Promise<void>;
   signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  linkEmailPassword: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -24,7 +23,6 @@ const AuthContext = createContext<AuthContextType>({
   signUpWithEmailPassword: async () => {},
   signInWithEmailPassword: async () => {},
   signOut: async () => {},
-  linkEmailPassword: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -92,14 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.removeItem('groq_api_key');
   };
 
-  // Transforma a conta anônima atual em uma conta permanente (mesmo user_id,
-  // mesmas notas — não perde nada). Por padrão o Supabase manda um e-mail de
-  // confirmação; a conta só fica "não-anônima" depois que o link é confirmado.
-  const linkEmailPassword = async (email: string, password: string) => {
-    const { error } = await supabase.auth.updateUser({ email, password });
-    if (error) throw error;
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -110,7 +100,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUpWithEmailPassword,
         signInWithEmailPassword,
         signOut,
-        linkEmailPassword,
       }}
     >
       {children}
