@@ -63,7 +63,13 @@ export default function RecordScreen() {
     if (user) {
       const cats = await getCategories(user.id);
       setCategories(cats);
-      if (cats.length > 0) setSelectedCategory(cats[0]);
+      // Mantém a categoria já escolhida ao voltar pra essa aba — só troca pra
+      // primeira se ainda não tinha nenhuma selecionada ou se a escolhida sumiu
+      // (ex: foi excluída enquanto o usuário estava em outra tela).
+      setSelectedCategory((prev) => {
+        if (prev && cats.some((c) => c.id === prev.id)) return prev;
+        return cats[0] ?? null;
+      });
     }
   }, [user]);
 
