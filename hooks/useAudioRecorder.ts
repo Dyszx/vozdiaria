@@ -1,6 +1,6 @@
 // Custom hook for audio recording
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { alert } from '../utils/alert';
 import {
   useAudioRecorder as useExpoAudioRecorder,
   RecordingPresets,
@@ -41,7 +41,7 @@ export function useAudioRecorder() {
   const requestPermissions = async (): Promise<boolean> => {
     const { granted } = await requestRecordingPermissionsAsync();
     if (!granted) {
-      Alert.alert(
+      alert(
         'Permissão Necessária',
         'O VozDiária precisa acessar o microfone para gravar notas de voz.',
         [{ text: 'OK' }]
@@ -80,7 +80,7 @@ export function useAudioRecorder() {
     } catch (error) {
       console.error('Failed to start recording:', error);
       setState((prev) => ({ ...prev, isLoading: false }));
-      Alert.alert('Erro', 'Não foi possível iniciar a gravação. Tente novamente.');
+      alert('Erro', 'Não foi possível iniciar a gravação. Tente novamente.');
     }
   };
 

@@ -7,7 +7,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Alert,
   Modal,
   RefreshControl,
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { format, isToday, isYesterday, isThisWeek, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { alert } from '../../utils/alert';
 import {
   Entry,
   getEntries,
@@ -117,7 +117,7 @@ function EntryCard({ entry, onDelete, onEdit, onChangeCategory }: EntryCardProps
       }
       player.play();
     } catch {
-      Alert.alert('Erro', 'Não foi possível reproduzir o áudio.');
+      alert('Erro', 'Não foi possível reproduzir o áudio.');
     }
   };
 
@@ -221,7 +221,7 @@ export default function EntriesScreen() {
   };
 
   const handlePermanentDelete = (entry: Entry) => {
-    Alert.alert('Excluir Definitivamente', 'Esta nota e seu áudio serão apagados para sempre. Não é possível desfazer.', [
+    alert('Excluir Definitivamente', 'Esta nota e seu áudio serão apagados para sempre. Não é possível desfazer.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir para sempre',
@@ -255,7 +255,7 @@ export default function EntriesScreen() {
   }
 
   const handleDelete = (entry: Entry) => {
-    Alert.alert('Mover para Lixeira', 'A nota vai para a lixeira e pode ser restaurada depois.', [
+    alert('Mover para Lixeira', 'A nota vai para a lixeira e pode ser restaurada depois.', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir',

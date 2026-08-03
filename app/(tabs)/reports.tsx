@@ -8,13 +8,13 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { format, addDays, subDays, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { alert } from '../../utils/alert';
 import { getEntries, getCategories, Entry, Category } from '../../services/entries';
 import {
   generateDailyReport,
@@ -125,7 +125,7 @@ export default function ReportsScreen() {
     try {
       await exportReportAsPDF(report, reportType);
     } catch {
-      Alert.alert('Erro', 'Não foi possível exportar o relatório.');
+      alert('Erro', 'Não foi possível exportar o relatório.');
     } finally {
       setExporting(false);
     }

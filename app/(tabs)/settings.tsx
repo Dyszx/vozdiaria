@@ -7,13 +7,13 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { alert } from '../../utils/alert';
 import { getCategories, addCategory, deleteCategory, Category } from '../../services/entries';
 import { COLORS, SPACING, RADIUS, FONT } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -65,13 +65,13 @@ export default function SettingsScreen() {
 
   const handleSaveKey = async () => {
     if (!geminiKey.trim()) {
-      Alert.alert('Erro', 'Digite uma chave válida.');
+      alert('Erro', 'Digite uma chave válida.');
       return;
     }
     await AsyncStorage.setItem('gemini_api_key', geminiKey.trim());
     setSavedKey(geminiKey.trim());
     setShowKeyInput(false);
-    Alert.alert('✅ Salvo', 'Chave Gemini configurada com sucesso!');
+    alert('✅ Salvo', 'Chave Gemini configurada com sucesso!');
   };
 
   const handleAddCategory = async () => {
@@ -88,7 +88,7 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteCategory = (category: Category) => {
-    Alert.alert(
+    alert(
       'Excluir Categoria',
       `Excluir "${category.name}"? As notas que já usam essa categoria não são apagadas, só deixam de ficar ligadas a ela.`,
       [
@@ -113,15 +113,15 @@ export default function SettingsScreen() {
 
   const handleCreateBackup = async () => {
     if (!backupEmail.includes('@') || !backupEmail.includes('.')) {
-      Alert.alert('Erro', 'Digite um e-mail válido.');
+      alert('Erro', 'Digite um e-mail válido.');
       return;
     }
     if (backupPassword.length < 6) {
-      Alert.alert('Erro', 'A senha precisa ter pelo menos 6 caracteres.');
+      alert('Erro', 'A senha precisa ter pelo menos 6 caracteres.');
       return;
     }
     if (backupPassword !== backupPasswordConfirm) {
-      Alert.alert('Erro', 'As senhas não são iguais.');
+      alert('Erro', 'As senhas não são iguais.');
       return;
     }
     setSavingBackup(true);
@@ -130,12 +130,12 @@ export default function SettingsScreen() {
       setShowBackupForm(false);
       setBackupPassword('');
       setBackupPasswordConfirm('');
-      Alert.alert(
+      alert(
         '✅ Quase lá',
         'Enviamos um e-mail de confirmação para ' + backupEmail.trim() + '. Confirme para proteger sua conta.'
       );
     } catch (error: any) {
-      Alert.alert('Erro', error.message ?? 'Não foi possível criar o backup.');
+      alert('Erro', error.message ?? 'Não foi possível criar o backup.');
     } finally {
       setSavingBackup(false);
     }
@@ -143,7 +143,7 @@ export default function SettingsScreen() {
 
   const handleSignIn = async () => {
     if (!signInEmail.trim() || !signInPassword) {
-      Alert.alert('Erro', 'Preencha e-mail e senha.');
+      alert('Erro', 'Preencha e-mail e senha.');
       return;
     }
     setSigningIn(true);
@@ -151,9 +151,9 @@ export default function SettingsScreen() {
       await signInWithEmailPassword(signInEmail.trim(), signInPassword);
       setShowSignInForm(false);
       setSignInPassword('');
-      Alert.alert('✅ Pronto', 'Login feito com sucesso. Suas notas devem aparecer em instantes.');
+      alert('✅ Pronto', 'Login feito com sucesso. Suas notas devem aparecer em instantes.');
     } catch (error: any) {
-      Alert.alert('Erro', error.message ?? 'Não foi possível entrar.');
+      alert('Erro', error.message ?? 'Não foi possível entrar.');
     } finally {
       setSigningIn(false);
     }
@@ -288,7 +288,7 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.linkBtn}
-              onPress={() => Alert.alert('Obter Chave Gemini', 'Acesse aistudio.google.com/apikey no seu navegador, faça login com sua conta Google e gere uma API Key.')}
+              onPress={() => alert('Obter Chave Gemini', 'Acesse aistudio.google.com/apikey no seu navegador, faça login com sua conta Google e gere uma API Key.')}
             >
               <Ionicons name="open-outline" size={16} color={COLORS.primary} />
               <Text style={styles.linkText}>Como obter a chave gratuita →</Text>

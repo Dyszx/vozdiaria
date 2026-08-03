@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Animated,
   Easing,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { alert } from '../../utils/alert';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import { transcribeAudio } from '../../services/transcription';
 import { createEntry, getCategories, Category } from '../../services/entries';
@@ -115,7 +115,7 @@ export default function RecordScreen() {
 
   const handleRecordPress = async () => {
     if (!hasApiKey) {
-      Alert.alert(
+      alert(
         '🔑 Chave Gemini Necessária',
         'Configure sua chave gratuita da Gemini API na aba Configurações para transcrever seus áudios.',
         [
@@ -127,7 +127,7 @@ export default function RecordScreen() {
     }
 
     if (!selectedCategory) {
-      Alert.alert('Categoria', 'Selecione uma categoria antes de gravar.');
+      alert('Categoria', 'Selecione uma categoria antes de gravar.');
       return;
     }
 
@@ -181,9 +181,9 @@ export default function RecordScreen() {
       }, 3000);
     } catch (error: any) {
       if (error.message === 'GEMINI_KEY_MISSING') {
-        Alert.alert('Erro', 'Chave Gemini não configurada. Vá em Configurações.');
+        alert('Erro', 'Chave Gemini não configurada. Vá em Configurações.');
       } else {
-        Alert.alert('Erro na Transcrição', 'Não foi possível transcrever o áudio. Verifique sua conexão.');
+        alert('Erro na Transcrição', 'Não foi possível transcrever o áudio. Verifique sua conexão.');
       }
       setStatusMessage('Selecione uma categoria e comece a gravar');
     } finally {
