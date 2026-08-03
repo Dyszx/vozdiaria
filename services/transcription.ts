@@ -55,8 +55,14 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Transcription failed: ${error}`);
+    const errorText = await response.text();
+    let message = errorText;
+    try {
+      message = JSON.parse(errorText)?.error?.message ?? errorText;
+    } catch {
+      // resposta não era JSON, usa o texto cru mesmo
+    }
+    throw new Error(`Gemini (${response.status}): ${message}`);
   }
 
   const json = await response.json();

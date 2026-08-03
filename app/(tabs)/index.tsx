@@ -180,10 +180,11 @@ export default function RecordScreen() {
         setStatusMessage('Selecione uma categoria e comece a gravar');
       }, 3000);
     } catch (error: any) {
+      console.error('Transcription/save error:', error);
       if (error.message === 'GEMINI_KEY_MISSING') {
         alert('Erro', 'Chave Gemini não configurada. Vá em Configurações.');
       } else {
-        alert('Erro na Transcrição', 'Não foi possível transcrever o áudio. Verifique sua conexão.');
+        alert('Erro na Transcrição', String(error?.message ?? error));
       }
       setStatusMessage('Selecione uma categoria e comece a gravar');
     } finally {
