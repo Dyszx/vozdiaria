@@ -37,15 +37,15 @@ Aguarde o download de todas as bibliotecas (pode levar alguns minutos na primeir
 
 ---
 
-## 🔑 Passo 3 — Obter Chave Gemini (Gratuita)
+## 🔑 Passo 3 — Obter Chave Groq (Gratuita)
 
-1. Acesse **https://aistudio.google.com/apikey**
-2. Faça login com sua conta Google
+1. Acesse **https://console.groq.com/keys**
+2. Faça login (ou crie uma conta gratuita)
 3. Clique em **Create API Key**
-4. Copie a chave (começa com `AIza...`)
+4. Copie a chave (começa com `gsk_...`)
 5. No app, abra a aba **Configurações** e cole a chave
 
-> ✅ O Gemini oferece transcrição gratuita dentro dos limites diários do plano gratuito.
+> ✅ A Groq oferece transcrição (Whisper) e interpretação de tarefas gratuitas dentro dos limites diários do plano gratuito.
 
 ---
 
@@ -81,7 +81,7 @@ VozDiaria/
 │   └── _layout.tsx
 ├── services/
 │   ├── supabase.ts         ← ⚠️ Configure aqui suas credenciais
-│   ├── transcription.ts    ← Integração Gemini (transcrição de áudio)
+│   ├── transcription.ts    ← Integração Groq (transcrição de áudio via Whisper)
 │   ├── entries.ts          ← CRUD das notas
 │   ├── tasks.ts            ← Extração de tarefas (IA + palavra-chave) e CRUD
 │   └── reports.ts          ← Geração de relatórios
@@ -104,7 +104,7 @@ VozDiaria/
 | `node: command not found` | Reinstale o Node.js e feche/abra o terminal |
 | `Cannot find module 'expo'` | Execute `npm install` novamente |
 | Erro de Supabase | Verifique se as credenciais em `services/supabase.ts` estão corretas e se `supabase/schema.sql` foi executado |
-| Erro de transcrição | Verifique se a chave Gemini está configurada nas Configurações |
+| Erro de transcrição | Verifique se a chave Groq está configurada nas Configurações |
 | App não abre no celular | Verifique se está na mesma rede Wi-Fi que o computador |
 
 ---
@@ -112,7 +112,7 @@ VozDiaria/
 ## 📊 Funcionalidades
 
 - 🎙️ **Gravação** com pausar/retomar e seleção de categoria
-- 🤖 **Transcrição automática** em português via Google Gemini
+- 🤖 **Transcrição automática** em português via Groq (Whisper)
 - ✅ **Extração automática de tarefas** ditas no áudio, com prazo interpretado pela IA
 - 📋 **Lista de notas** com busca, filtros e reprodução de áudio
 - 📊 **Relatórios diários e semanais** com linha do tempo

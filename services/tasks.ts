@@ -3,7 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from './supabase';
-import { GEMINI_API_URL, fetchGeminiWithRetry } from './transcription';
+import { fetchGroqWithRetry } from './transcription';
+
+const GROQ_CHAT_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_TASK_MODEL = 'llama-3.3-70b-versatile';
 
 export interface Task {
   id?: string;
@@ -60,12 +63,8 @@ export function extractTasksByKeyword(text: string): ExtractedTask[] {
     }));
 }
 
-function stripCodeFences(raw: string): string {
-  return raw.trim().replace(/^```[a-z]*\n?/i, '').replace(/```$/, '').trim();
-}
-
-// Pede ao Gemini (texto, sem áudio) pra identificar tarefas/compromissos e, quando possível,
-// inferir a data a partir de expressões relativas ("amanhã", "sexta-feira").
+// Pede pra Groq (texto, via Llama) identificar tarefas/compromissos e, quando
+// possível, inferir a data a partir de expressões relativas ("amanhã", "sexta-feira").
 export async function extractTasksWithAI(
   text: string,
   referenceDate: Date,
@@ -76,33 +75,35 @@ export async function extractTasksWithAI(
   const prompt = `Hoje é ${readableDate}.
 Leia o texto abaixo (transcrição de um áudio) e identifique compromissos, lembretes ou tarefas que a pessoa precisa fazer. Ignore o que for só relato, opinião ou desabafo.
 
-Responda SOMENTE com um JSON array (sem markdown, sem comentário). Cada item: {"title": string curto no imperativo, "due_date": "YYYY-MM-DD" ou null}.
-Se não houver nenhuma tarefa, responda [].
+Responda em JSON no formato {"tasks": [{"title": string curto no imperativo, "due_date": "YYYY-MM-DD" ou null}]}.
+Se não houver nenhuma tarefa, responda {"tasks": []}.
 
 Texto: "${text}"`;
 
-  const response = await fetchGeminiWithRetry(`${GEMINI_API_URL}?key=${apiKey}`, {
+  const response = await fetchGroqWithRetry(GROQ_CHAT_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      model: GROQ_TASK_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini (${response.status}): falha ao extrair tarefas`);
+    throw new Error(`Groq (${response.status}): falha ao extrair tarefas`);
   }
 
   const json = await response.json();
-  const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) throw new Error('Extração de tarefas: resposta vazia do Gemini');
+  const rawText = json?.choices?.[0]?.message?.content;
+  if (!rawText) throw new Error('Extração de tarefas: resposta vazia da Groq');
 
-  const parsed = JSON.parse(stripCodeFences(rawText));
-  if (!Array.isArray(parsed)) throw new Error('Extração de tarefas: resposta em formato inesperado');
+  const parsed = JSON.parse(rawText);
+  if (!Array.isArray(parsed?.tasks)) throw new Error('Extração de tarefas: resposta em formato inesperado');
 
-  return parsed
-    .filter((item) => item && typeof item.title === 'string' && item.title.trim())
-    .map((item) => ({
+  return parsed.tasks
+    .filter((item: any) => item && typeof item.title === 'string' && item.title.trim())
+    .map((item: any) => ({
       title: item.title.trim(),
       dueDate: item.due_date ? new Date(item.due_date) : null,
       source: 'ai' as const,
@@ -113,7 +114,7 @@ Texto: "${text}"`;
 // se não houver chave configurada ou a chamada falhar, cai pro fallback local de palavra-chave.
 // Nunca lança erro — uma falha de extração não pode impedir o salvamento da nota.
 export async function extractTasks(text: string, referenceDate: Date): Promise<ExtractedTask[]> {
-  const apiKey = await AsyncStorage.getItem('gemini_api_key');
+  const apiKey = await AsyncStorage.getItem('groq_api_key');
 
   if (apiKey) {
     try {

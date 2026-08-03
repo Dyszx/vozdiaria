@@ -57,7 +57,7 @@ export default function RecordScreen() {
   }, [isRecording, isPaused]);
 
   const loadData = useCallback(async () => {
-    const key = await AsyncStorage.getItem('gemini_api_key');
+    const key = await AsyncStorage.getItem('groq_api_key');
     setHasApiKey(!!key);
 
     if (user) {
@@ -117,8 +117,8 @@ export default function RecordScreen() {
   const handleRecordPress = async () => {
     if (!hasApiKey) {
       alert(
-        '🔑 Chave Gemini Necessária',
-        'Configure sua chave gratuita da Gemini API na aba Configurações para transcrever seus áudios.',
+        '🔑 Chave Groq Necessária',
+        'Configure sua chave gratuita da Groq na aba Configurações para transcrever seus áudios.',
         [
           { text: 'Configurar Agora', onPress: () => router.push('/settings') },
           { text: 'Cancelar', style: 'cancel' },

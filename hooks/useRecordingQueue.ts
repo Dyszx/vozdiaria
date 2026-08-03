@@ -92,8 +92,8 @@ export function useRecordingQueue() {
         setTimeout(() => dismissItem(next.id), DONE_REMOVAL_DELAY_MS);
       } catch (error: any) {
         const message =
-          error?.message === 'GEMINI_KEY_MISSING'
-            ? 'Chave Gemini não configurada'
+          error?.message === 'GROQ_KEY_MISSING'
+            ? 'Chave Groq não configurada'
             : String(error?.message ?? error);
         updateItem(next.id, { status: 'error', errorMessage: message });
       }

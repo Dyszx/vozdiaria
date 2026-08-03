@@ -26,7 +26,7 @@ const CATEGORY_COLORS = [
 
 export default function SettingsScreen() {
   const { user, signOut, linkEmailPassword, signInWithEmailPassword } = useAuth();
-  const [geminiKey, setGeminiKey] = useState('');
+  const [groqKey, setGroqKey] = useState('');
   const [savedKey, setSavedKey] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCatName, setNewCatName] = useState('');
@@ -46,10 +46,10 @@ export default function SettingsScreen() {
   const [signingIn, setSigningIn] = useState(false);
 
   const loadData = useCallback(async () => {
-    const key = await AsyncStorage.getItem('gemini_api_key');
+    const key = await AsyncStorage.getItem('groq_api_key');
     if (key) {
       setSavedKey(key);
-      setGeminiKey(key);
+      setGroqKey(key);
     }
     if (user) {
       const cats = await getCategories(user.id);
@@ -64,14 +64,14 @@ export default function SettingsScreen() {
   );
 
   const handleSaveKey = async () => {
-    if (!geminiKey.trim()) {
+    if (!groqKey.trim()) {
       alert('Erro', 'Digite uma chave válida.');
       return;
     }
-    await AsyncStorage.setItem('gemini_api_key', geminiKey.trim());
-    setSavedKey(geminiKey.trim());
+    await AsyncStorage.setItem('groq_api_key', groqKey.trim());
+    setSavedKey(groqKey.trim());
     setShowKeyInput(false);
-    alert('✅ Salvo', 'Chave Gemini configurada com sucesso!');
+    alert('✅ Salvo', 'Chave Groq configurada com sucesso!');
   };
 
   const handleAddCategory = async () => {
@@ -278,17 +278,17 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Gemini API Key Section */}
+        {/* Groq API Key Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔑 CHAVE GEMINI (TRANSCRIÇÃO)</Text>
+          <Text style={styles.sectionTitle}>🔑 CHAVE GROQ (TRANSCRIÇÃO)</Text>
           <View style={styles.card}>
             <Text style={styles.cardDesc}>
-              O Google Gemini transcreve seu áudio <Text style={{ color: COLORS.accent }}>gratuitamente</Text> dentro dos limites diários do plano gratuito.
+              A Groq transcreve seu áudio (Whisper) e interpreta suas tarefas <Text style={{ color: COLORS.accent }}>gratuitamente</Text> dentro dos limites diários do plano gratuito.
             </Text>
 
             <TouchableOpacity
               style={styles.linkBtn}
-              onPress={() => alert('Obter Chave Gemini', 'Acesse aistudio.google.com/apikey no seu navegador, faça login com sua conta Google e gere uma API Key.')}
+              onPress={() => alert('Obter Chave Groq', 'Acesse console.groq.com/keys no seu navegador, faça login (ou crie uma conta) e gere uma API Key.')}
             >
               <Ionicons name="open-outline" size={16} color={COLORS.primary} />
               <Text style={styles.linkText}>Como obter a chave gratuita →</Text>
@@ -316,10 +316,10 @@ export default function SettingsScreen() {
               <View style={styles.keyInputWrap}>
                 <TextInput
                   style={styles.keyInput}
-                  placeholder="AIza..."
+                  placeholder="gsk_..."
                   placeholderTextColor={COLORS.textMuted}
-                  value={geminiKey}
-                  onChangeText={setGeminiKey}
+                  value={groqKey}
+                  onChangeText={setGroqKey}
                   secureTextEntry
                   autoCapitalize="none"
                 />

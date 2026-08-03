@@ -1,25 +1,21 @@
-// Gemini Transcription Service
+// Groq Whisper Transcription Service
 // ====================================
-// O Gemini transcreve áudio nativamente via generateContent (áudio inline em base64).
-// Free tier generoso (Gemini Flash): sem custo até os limites de requisições/dia.
+// Groq hospeda o Whisper (large-v3) com inferência muito rápida — free tier
+// generoso, sem custo até os limites diários do plano gratuito.
 //
 // Para obter sua chave gratuita:
-// 1. Acesse https://aistudio.google.com/apikey
-// 2. Faça login com sua conta Google
+// 1. Acesse https://console.groq.com/keys
+// 2. Faça login (ou crie uma conta)
 // 3. Clique em "Create API Key"
 // 4. Cole a chave no app em Configurações
 
 import { Platform } from 'react-native';
-import { File } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const GEMINI_MODEL = 'gemini-3.6-flash';
-export const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+export const GROQ_WHISPER_MODEL = 'whisper-large-v3';
+export const GROQ_TRANSCRIPTION_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
-const TRANSCRIPTION_PROMPT =
-  'Transcreva o áudio a seguir literalmente em português do Brasil. Responda apenas com o texto transcrito, sem comentários, aspas ou formatação adicional.';
-
-// 503 (sobrecarga) e 429 (rate limit) são picos passageiros do lado do Google —
+// 503 (sobrecarga) e 429 (rate limit) são picos passageiros do lado da Groq —
 // vale tentar de novo antes de mostrar erro pro usuário.
 const RETRYABLE_STATUS = new Set([503, 429]);
 const MAX_ATTEMPTS = 3;
@@ -29,7 +25,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function fetchGeminiWithRetry(url: string, options: RequestInit): Promise<Response> {
+export async function fetchGroqWithRetry(url: string, options: RequestInit): Promise<Response> {
   let response: Response;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     response = await fetch(url, options);
@@ -41,38 +37,33 @@ export async function fetchGeminiWithRetry(url: string, options: RequestInit): P
 }
 
 export async function transcribeAudio(audioUri: string): Promise<string> {
-  const apiKey = await AsyncStorage.getItem('gemini_api_key');
+  const apiKey = await AsyncStorage.getItem('groq_api_key');
 
   if (!apiKey) {
-    throw new Error('GEMINI_KEY_MISSING');
+    throw new Error('GROQ_KEY_MISSING');
   }
 
-  let base64Audio: string;
-  let mimeType: string;
+  const formData = new FormData();
 
   if (Platform.OS === 'web') {
-    // No navegador a gravação é um blob: URL (audio/webm) — convertemos pra base64 via FileReader.
+    // No navegador a gravação é um blob: URL (audio/webm) — buscamos o Blob direto.
     const blob = await (await fetch(audioUri)).blob();
-    base64Audio = await blobToBase64(blob);
-    mimeType = 'audio/webm';
+    formData.append('file', blob, 'audio.webm');
   } else {
-    base64Audio = await new File(audioUri).base64();
-    mimeType = 'audio/m4a';
+    formData.append('file', {
+      uri: audioUri,
+      name: 'audio.m4a',
+      type: 'audio/m4a',
+    } as any);
   }
 
-  const response = await fetchGeminiWithRetry(`${GEMINI_API_URL}?key=${apiKey}`, {
+  formData.append('model', GROQ_WHISPER_MODEL);
+  formData.append('language', 'pt');
+
+  const response = await fetchGroqWithRetry(GROQ_TRANSCRIPTION_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: TRANSCRIPTION_PROMPT },
-            { inline_data: { mime_type: mimeType, data: base64Audio } },
-          ],
-        },
-      ],
-    }),
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
   });
 
   if (!response.ok) {
@@ -83,24 +74,15 @@ export async function transcribeAudio(audioUri: string): Promise<string> {
     } catch {
       // resposta não era JSON, usa o texto cru mesmo
     }
-    throw new Error(`Gemini (${response.status}): ${message}`);
+    throw new Error(`Groq (${response.status}): ${message}`);
   }
 
   const json = await response.json();
-  const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = json?.text;
 
   if (!text) {
-    throw new Error('Transcription failed: resposta vazia do Gemini');
+    throw new Error('Transcription failed: resposta vazia da Groq');
   }
 
   return text.trim();
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
