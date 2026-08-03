@@ -29,6 +29,7 @@ import {
   getDeletedEntries,
   restoreEntry,
   permanentlyDeleteEntry,
+  permanentlyDeleteAllEntries,
 } from '../../services/entries';
 import { COLORS, SPACING, RADIUS, FONT, SHADOW } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
@@ -232,6 +233,25 @@ export default function EntriesScreen() {
         },
       },
     ]);
+  };
+
+  const handleEmptyTrash = () => {
+    if (deletedEntries.length === 0) return;
+    alert(
+      'Esvaziar Lixeira',
+      `Todas as ${deletedEntries.length} nota${deletedEntries.length !== 1 ? 's' : ''} da lixeira e seus áudios serão apagados para sempre. Não é possível desfazer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir tudo',
+          style: 'destructive',
+          onPress: async () => {
+            await permanentlyDeleteAllEntries(deletedEntries);
+            await loadTrash();
+          },
+        },
+      ]
+    );
   };
 
   const dateFilterBoundary = (filter: DateFilter): Date | null => {
@@ -487,9 +507,16 @@ export default function EntriesScreen() {
           <View style={[styles.modalCard, styles.trashCard]}>
             <View style={styles.trashHeader}>
               <Text style={styles.modalTitle}>Lixeira</Text>
-              <TouchableOpacity onPress={() => setShowTrash(false)}>
-                <Ionicons name="close" size={24} color={COLORS.textSecondary} />
-              </TouchableOpacity>
+              <View style={styles.trashHeaderActions}>
+                {deletedEntries.length > 0 && (
+                  <TouchableOpacity onPress={handleEmptyTrash}>
+                    <Text style={styles.emptyTrashText}>Excluir tudo</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowTrash(false)}>
+                  <Ionicons name="close" size={24} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {loadingTrash ? (
@@ -616,6 +643,8 @@ const styles = StyleSheet.create({
 
   trashCard: { height: '65%' },
   trashHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.md },
+  trashHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  emptyTrashText: { color: COLORS.error, fontSize: 13, ...FONT.semibold },
   trashItem: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   trashItemText: { color: COLORS.text, fontSize: 14 },
   trashItemDate: { color: COLORS.textMuted, fontSize: 11, marginTop: 2 },

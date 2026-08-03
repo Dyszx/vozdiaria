@@ -213,6 +213,20 @@ export async function permanentlyDeleteEntry(entry: Entry): Promise<void> {
   if (error) throw error;
 }
 
+// Permanently delete every entry passed in (used to empty the trash in one go)
+export async function permanentlyDeleteAllEntries(entries: Entry[]): Promise<void> {
+  const paths = entries.map((e) => extractStoragePath(e.audioUrl)).filter((p): p is string => !!p);
+  if (paths.length > 0) {
+    await supabase.storage.from('audios').remove(paths);
+  }
+
+  const ids = entries.map((e) => e.id).filter((id): id is string => !!id);
+  if (ids.length === 0) return;
+
+  const { error } = await supabase.from('entries').delete().in('id', ids);
+  if (error) throw error;
+}
+
 function extractStoragePath(publicUrl: string): string | null {
   const marker = '/audios/';
   const idx = publicUrl.indexOf(marker);
