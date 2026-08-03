@@ -121,6 +121,13 @@ export default function RecordScreen() {
   };
 
   const handleRecordPress = async () => {
+    // Enquanto grava (sem pausa), o botão principal fica sem função própria —
+    // reaproveita ele como o "Finalizar", em vez de deixar um botão parado.
+    if (isRecording && !isPaused) {
+      await handleStop();
+      return;
+    }
+
     if (!hasApiKey) {
       alert(
         '🔑 Chave Groq Necessária',
@@ -277,7 +284,7 @@ export default function RecordScreen() {
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="large" />
               ) : isRecording && !isPaused ? (
-                <Ionicons name="mic" size={isRecording ? 32 : 48} color="#fff" />
+                <Ionicons name="checkmark" size={isRecording ? 32 : 48} color="#fff" />
               ) : isPaused ? (
                 <Ionicons name="play" size={isRecording ? 32 : 48} color="#fff" />
               ) : (
@@ -305,11 +312,6 @@ export default function RecordScreen() {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.controlBtnText}>{isPaused ? 'Retomar' : 'Pausar'}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlBtn} onPress={handleStop}>
-              <Ionicons name="stop-circle-outline" size={40} color={COLORS.accentDanger} />
-              <Text style={[styles.controlBtnText, { color: COLORS.accentDanger }]}>Finalizar</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -447,7 +449,7 @@ const styles = StyleSheet.create({
 
   secondaryControls: {
     flexDirection: 'row',
-    gap: SPACING.lg,
+    gap: SPACING.xxl,
     marginTop: SPACING.md,
   },
   controlBtn: {
