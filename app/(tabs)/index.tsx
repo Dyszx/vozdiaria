@@ -18,6 +18,7 @@ import { alert } from '../../utils/alert';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 import { transcribeAudio } from '../../services/transcription';
 import { createEntry, getCategories, Category } from '../../services/entries';
+import { extractTasks, createTasksForEntry } from '../../services/tasks';
 import { COLORS, SPACING, RADIUS, FONT, SHADOW } from '../../constants/theme';
 import { useAuth } from '../../context/AuthContext';
 import { router, useFocusEffect } from 'expo-router';
@@ -157,7 +158,7 @@ export default function RecordScreen() {
       const text = await transcribeAudio(uri);
       setStatusMessage('💾 Salvando nota...');
 
-      await createEntry(
+      const entryId = await createEntry(
         {
           text,
           audioUrl: '',
@@ -172,6 +173,16 @@ export default function RecordScreen() {
         },
         uri
       );
+
+      try {
+        const foundTasks = await extractTasks(text, new Date());
+        if (foundTasks.length > 0) {
+          await createTasksForEntry(foundTasks, entryId, user.id);
+        }
+      } catch (taskError) {
+        // Extração de tarefas é um extra sobre a nota — uma falha aqui nunca deve impedir o salvamento dela.
+        console.error('Task extraction error:', taskError);
+      }
 
       setStatusMessage('✅ Nota salva com sucesso!');
       resetRecording();

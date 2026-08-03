@@ -13,8 +13,8 @@ import { Platform } from 'react-native';
 import { File } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const GEMINI_MODEL = 'gemini-3.6-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+export const GEMINI_MODEL = 'gemini-3.6-flash';
+export const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const TRANSCRIPTION_PROMPT =
   'Transcreva o áudio a seguir literalmente em português do Brasil. Responda apenas com o texto transcrito, sem comentários, aspas ou formatação adicional.';

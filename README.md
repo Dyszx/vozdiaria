@@ -29,7 +29,7 @@ Aguarde o download de todas as bibliotecas (pode levar alguns minutos na primeir
 3. Aguarde o projeto ser provisionado (~2 minutos)
 4. No menu lateral, clique em **SQL Editor** → **New query**
 5. Cole todo o conteúdo do arquivo `supabase/schema.sql` deste projeto e execute (▶ Run)
-   - Isso cria as tabelas `entries` e `categories`, as políticas de RLS e o bucket de áudio `audios`
+   - Isso cria as tabelas `entries`, `categories` e `tasks`, as políticas de RLS e o bucket de áudio `audios`
 6. Vá em **Project Settings > API**
 7. Copie a **Project URL** e a chave **anon public**
 8. Abra o arquivo `services/supabase.ts` e substitua `SUPABASE_URL` e `SUPABASE_ANON_KEY`
@@ -75,6 +75,7 @@ VozDiaria/
 │   ├── (tabs)/
 │   │   ├── index.tsx       ← Tela de Gravação
 │   │   ├── entries.tsx     ← Lista de Notas
+│   │   ├── tasks.tsx       ← Tarefas extraídas dos áudios
 │   │   ├── reports.tsx     ← Relatórios
 │   │   └── settings.tsx    ← Configurações
 │   └── _layout.tsx
@@ -82,6 +83,7 @@ VozDiaria/
 │   ├── supabase.ts         ← ⚠️ Configure aqui suas credenciais
 │   ├── transcription.ts    ← Integração Gemini (transcrição de áudio)
 │   ├── entries.ts          ← CRUD das notas
+│   ├── tasks.ts            ← Extração de tarefas (IA + palavra-chave) e CRUD
 │   └── reports.ts          ← Geração de relatórios
 ├── hooks/
 │   └── useAudioRecorder.ts ← Lógica de gravação
@@ -111,6 +113,7 @@ VozDiaria/
 
 - 🎙️ **Gravação** com pausar/retomar e seleção de categoria
 - 🤖 **Transcrição automática** em português via Google Gemini
+- ✅ **Extração automática de tarefas** ditas no áudio, com prazo interpretado pela IA
 - 📋 **Lista de notas** com busca, filtros e reprodução de áudio
 - 📊 **Relatórios diários e semanais** com linha do tempo
 - 📄 **Exportar PDF** para compartilhar relatórios

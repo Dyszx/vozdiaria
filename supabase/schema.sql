@@ -63,3 +63,25 @@ create policy "Users manage their own audio files"
 create policy "Public read access to audio files"
   on storage.objects for select
   using (bucket_id = 'audios');
+
+-- Tarefas extraídas automaticamente dos áudios (por IA ou por palavra-chave)
+create table if not exists tasks (
+  id uuid primary key default gen_random_uuid(),
+  entry_id uuid references entries(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  due_date timestamptz,
+  done boolean not null default false,
+  source text not null default 'ai', -- 'ai' | 'keyword'
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
+);
+
+create index if not exists tasks_user_id_done_idx on tasks (user_id, done, due_date);
+
+alter table tasks enable row level security;
+
+create policy "Users manage their own tasks"
+  on tasks for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
