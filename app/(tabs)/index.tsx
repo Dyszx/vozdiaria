@@ -146,6 +146,21 @@ export default function RecordScreen() {
     setStatusMessage('Pausado. Toque para continuar.');
   };
 
+  const handleCancel = () => {
+    alert('Cancelar Gravação', 'O áudio gravado até agora será descartado.', [
+      { text: 'Continuar gravando', style: 'cancel' },
+      {
+        text: 'Descartar',
+        style: 'destructive',
+        onPress: async () => {
+          await stopRecording();
+          resetRecording();
+          setStatusMessage('Selecione uma categoria e comece a gravar');
+        },
+      },
+    ]);
+  };
+
   const handleStop = async () => {
     setStatusMessage('Parando gravação...');
     const uri = await stopRecording();
@@ -269,6 +284,11 @@ export default function RecordScreen() {
         {/* Secondary Controls */}
         {isRecording && (
           <View style={styles.secondaryControls}>
+            <TouchableOpacity style={styles.controlBtn} onPress={handleCancel}>
+              <Ionicons name="trash-outline" size={36} color={COLORS.textMuted} />
+              <Text style={styles.controlBtnText}>Cancelar</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.controlBtn}
               onPress={isPaused ? resumeRecording : handlePause}
@@ -421,7 +441,7 @@ const styles = StyleSheet.create({
 
   secondaryControls: {
     flexDirection: 'row',
-    gap: SPACING.xxl,
+    gap: SPACING.lg,
     marginTop: SPACING.md,
   },
   controlBtn: {
